@@ -11,7 +11,7 @@ on:
       zip_url:
         description: 'url to zip of json'
         required: true
-        default: ''
+        default: 'https://irchat.ru/ChrootDeskAdmin.json'
         type: string
 
 env:
