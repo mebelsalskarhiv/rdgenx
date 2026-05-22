@@ -315,26 +315,32 @@ jobs:
         shell: bash
           
       - name: magick stuff
-        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 1
           max_attempts: 3
           shell: pwsh
           command: |
+            # Read config from secrets.json
+            $configPath = "secrets.json"
+            $config = $null
+            if (Test-Path $configPath) {
+              $config = Get-Content $configPath -Raw | ConvertFrom-Json
+            }
+            
             # Get icon from URL or base64
             $iconDownloaded = $false
             if ($env:iconlink_url -and $env:iconlink_url -ne "false") {
               Invoke-WebRequest -Uri "$($env:iconlink_url)/get_png?filename=$($env:iconlink_file)&uuid=$($env:iconlink_uuid)" -OutFile ./res/iconx.png
               $iconDownloaded = $true
             }
-            elseif ($env:iconfile) {
-              $base64Data = $env:iconfile -replace '^data:image/[^;]+;base64,', ''
+            elseif ($config -and $config.iconfile) {
+              $base64Data = $config.iconfile -replace '^data:image/[^;]+;base64,', ''
               [System.IO.File]::WriteAllBytes("./res/iconx.png", [System.Convert]::FromBase64String($base64Data))
               $iconDownloaded = $true
             }
-            elseif ($env:iconbase64) {
-              $base64Data = $env:iconbase64 -replace '^data:image/[^;]+;base64,', ''
+            elseif ($config -and $config.iconbase64) {
+              $base64Data = $config.iconbase64 -replace '^data:image/[^;]+;base64,', ''
               [System.IO.File]::WriteAllBytes("./res/iconx.png", [System.Convert]::FromBase64String($base64Data))
               $iconDownloaded = $true
             }
@@ -357,7 +363,6 @@ jobs:
             }
 
       - name: ui.rs icon
-        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         continue-on-error: true
         shell: bash
         run: |
@@ -406,7 +411,6 @@ jobs:
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
       - name: replace flutter icons
-        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         continue-on-error: true
         run: |
           cd ./flutter
@@ -451,14 +455,12 @@ jobs:
           }
 
       - name: icon stuff
-        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         continue-on-error: true
         run: |
           mv ./rustdesk/data/flutter_assets/assets/icon.svg ./rustdesk/data/flutter_assets/assets/icon.svg.bak
           magick ./res/icon.png ./rustdesk/data/flutter_assets/assets/icon.svg
 
       - name: logo stuff
-        if: ${{ env.logolink_url != 'false' || env.logobase64 || env.logofile }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 1
@@ -466,19 +468,26 @@ jobs:
           shell: pwsh
           continue_on_error: true
           command: |
+            # Read config from secrets.json
+            $configPath = "secrets.json"
+            $config = $null
+            if (Test-Path $configPath) {
+              $config = Get-Content $configPath -Raw | ConvertFrom-Json
+            }
+            
             # Get logo from URL or base64
             $logoDownloaded = $false
             if ($env:logolink_url -and $env:logolink_url -ne "false") {
               Invoke-WebRequest -Uri "$($env:logolink_url)/get_png?filename=$($env:logolink_file)&uuid=$($env:logolink_uuid)" -OutFile ./rustdesk/data/flutter_assets/assets/logo.png
               $logoDownloaded = $true
             }
-            elseif ($env:logofile) {
-              $base64Data = $env:logofile -replace '^data:image/[^;]+;base64,', ''
+            elseif ($config -and $config.logofile) {
+              $base64Data = $config.logofile -replace '^data:image/[^;]+;base64,', ''
               [System.IO.File]::WriteAllBytes("./rustdesk/data/flutter_assets/assets/logo.png", [System.Convert]::FromBase64String($base64Data))
               $logoDownloaded = $true
             }
-            elseif ($env:logobase64) {
-              $base64Data = $env:logobase64 -replace '^data:image/[^;]+;base64,', ''
+            elseif ($config -and $config.logobase64) {
+              $base64Data = $config.logobase64 -replace '^data:image/[^;]+;base64,', ''
               [System.IO.File]::WriteAllBytes("./rustdesk/data/flutter_assets/assets/logo.png", [System.Convert]::FromBase64String($base64Data))
               $logoDownloaded = $true
             }

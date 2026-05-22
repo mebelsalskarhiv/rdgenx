@@ -97,9 +97,16 @@ jobs:
           command: |
             cd RustDeskTempTopMostWindow && git checkout 53b548a5398624f7149a382000397993542ad796
             
+            # Read config from secrets.json
+            $configPath = "../secrets.json"
+            $config = $null
+            if (Test-Path $configPath) {
+              $config = Get-Content $configPath -Raw | ConvertFrom-Json
+            }
+            
             # Handle privacy image from URL or base64
             $usePrivacyImage = $false
-            if (($env:privacylink_url -and $env:privacylink_url -ne "false") -or $env:privacybase64 -or $env:privacyfile) {
+            if (($env:privacylink_url -and $env:privacylink_url -ne "false") -or ($config -and ($config.privacybase64 -or $config.privacyfile))) {
               $usePrivacyImage = $true
             }
             
@@ -110,13 +117,13 @@ jobs:
               if ($env:privacylink_url -and $env:privacylink_url -ne "false") {
                 Invoke-WebRequest -Uri "$($env:privacylink_url)/get_png?filename=$($env:privacylink_file)&uuid=$($env:privacylink_uuid)" -OutFile privacy.png
               }
-              # Then try base64 fields
-              elseif ($env:privacyfile) {
-                $base64Data = $env:privacyfile -replace '^data:image/[^;]+;base64,', ''
+              # Then try base64 fields from config
+              elseif ($config -and $config.privacyfile) {
+                $base64Data = $config.privacyfile -replace '^data:image/[^;]+;base64,', ''
                 [System.IO.File]::WriteAllBytes("privacy.png", [System.Convert]::FromBase64String($base64Data))
               }
-              elseif ($env:privacybase64 -and $env:privacybase64 -ne "[object Object]") {
-                $base64Data = $env:privacybase64 -replace '^data:image/[^;]+;base64,', ''
+              elseif ($config -and $config.privacybase64 -and $config.privacybase64 -ne "[object Object]") {
+                $base64Data = $config.privacybase64 -replace '^data:image/[^;]+;base64,', ''
                 [System.IO.File]::WriteAllBytes("privacy.png", [System.Convert]::FromBase64String($base64Data))
               }
               

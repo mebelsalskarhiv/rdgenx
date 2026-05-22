@@ -14,21 +14,26 @@ runs:
       run: |
         import json
         import os
+        import shutil
 
         with open('${{ inputs.json_path }}', 'r') as f:
             secrets = json.load(f)
 
-        # Skip masking for large base64 fields to prevent "Argument list too long" error
-        skip_mask_fields = [
+        # Don't set large base64 fields as env vars at all - they cause "Argument list too long"
+        skip_env_fields = [
             'iconbase64', 'logobase64', 'privacybase64',
             'iconfile', 'logofile', 'privacyfile'
         ]
 
         with open(os.environ['GITHUB_ENV'], 'a') as env_file:
             for key, value in secrets.items():
-                if value:
-                    if key not in skip_mask_fields and len(str(value)) < 1000:
+                if value and key not in skip_env_fields:
+                    if len(str(value)) < 1000:
                         print(f"::add-mask::{value}")
                     env_file.write(f"{key}={value}\n")
+        
+        # Keep the JSON file for later steps to read base64 from
+        if '${{ inputs.json_path }}' != 'secrets.json':
+            shutil.copy('${{ inputs.json_path }}', 'secrets.json')
         
         print(f"Successfully loaded {len(secrets)} secrets.")
