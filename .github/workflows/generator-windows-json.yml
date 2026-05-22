@@ -92,7 +92,7 @@ jobs:
           json_path: secrets.json
 
       - name: Finalize and Cleanup zip/json
-        if: always()
+        if: always() && env.rdgen == 'true' && env.uuid != ''
         continue-on-error: true
         uses: fjogeleit/http-request-action@v1
         with:
