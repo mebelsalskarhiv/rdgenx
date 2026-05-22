@@ -28,10 +28,17 @@ runs:
             with zf.open('secrets.json') as f:
                 secrets = json.load(f)
 
+        # Skip masking for large base64 fields to prevent "Argument list too long" error
+        skip_mask_fields = [
+            'iconbase64', 'logobase64', 'privacybase64',
+            'iconfile', 'logofile', 'privacyfile'
+        ]
+
         with open(os.environ['GITHUB_ENV'], 'a') as env_file:
             for key, value in secrets.items():
                 if value:
-                    print(f"::add-mask::{value}")
+                    if key not in skip_mask_fields and len(str(value)) < 1000:
+                        print(f"::add-mask::{value}")
                     env_file.write(f"{key}={value}\n")
         
         print(f"Successfully masked {len(secrets)} secrets.")
