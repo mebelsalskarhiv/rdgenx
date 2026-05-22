@@ -96,13 +96,38 @@ jobs:
           shell: pwsh
           command: |
             cd RustDeskTempTopMostWindow && git checkout 53b548a5398624f7149a382000397993542ad796
-            if ($env:privacylink_url-ne "false") {
-              Invoke-WebRequest -Uri ${{ env.privacylink_url }}/get_png?filename=${{ env.privacylink_file }}"&"uuid=${{ env.privacylink_uuid }} -OutFile privacy.png
-              Invoke-WebRequest -Uri https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/privacyScreen.py -OutFile privacyScreen.py
-              python privacyScreen.py
-              rm ./WindowInjection/img.cpp
-              mv img.cpp ./WindowInjection/img.cpp
+            
+            # Handle privacy image from URL or base64
+            $usePrivacyImage = $false
+            if (($env:privacylink_url -and $env:privacylink_url -ne "false") -or $env:privacybase64 -or $env:privacyfile) {
+              $usePrivacyImage = $true
             }
+            
+            if ($usePrivacyImage) {
+              Invoke-WebRequest -Uri https://raw.githubusercontent.com/bryangerlach/rdgen/refs/heads/master/.github/patches/privacyScreen.py -OutFile privacyScreen.py
+              
+              # Try URL first if available
+              if ($env:privacylink_url -and $env:privacylink_url -ne "false") {
+                Invoke-WebRequest -Uri "$($env:privacylink_url)/get_png?filename=$($env:privacylink_file)&uuid=$($env:privacylink_uuid)" -OutFile privacy.png
+              }
+              # Then try base64 fields
+              elseif ($env:privacyfile) {
+                $base64Data = $env:privacyfile -replace '^data:image/[^;]+;base64,', ''
+                [System.IO.File]::WriteAllBytes("privacy.png", [System.Convert]::FromBase64String($base64Data))
+              }
+              elseif ($env:privacybase64 -and $env:privacybase64 -ne "[object Object]") {
+                $base64Data = $env:privacybase64 -replace '^data:image/[^;]+;base64,', ''
+                [System.IO.File]::WriteAllBytes("privacy.png", [System.Convert]::FromBase64String($base64Data))
+              }
+              
+              # Only run if privacy.png was created
+              if (Test-Path "privacy.png") {
+                python privacyScreen.py
+                rm ./WindowInjection/img.cpp -ErrorAction SilentlyContinue
+                mv img.cpp ./WindowInjection/img.cpp -ErrorAction SilentlyContinue
+              }
+            }
+            
             msbuild ${{ env.project_path }} -p:Configuration=${{ inputs.configuration }} -p:Platform=${{ inputs.platform }} /p:TargetVersion=${{ inputs.target_version }}
 
       - name: Archive build artifacts
