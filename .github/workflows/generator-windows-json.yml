@@ -651,6 +651,16 @@ jobs:
         run: |
           mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}.msi" || echo "rustdesk"
 
+      - name: Upload compiled artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: compiled-client
+          path: |
+            ./SignOutput/
+            ./rustdesk/
+
       - name: send file to rdgen server
         if: ${{ env.rdgen == 'true' }}
         uses: nick-fields/retry@v3
