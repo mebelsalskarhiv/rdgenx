@@ -492,6 +492,44 @@ jobs:
               $logoDownloaded = $true
             }
 
+      - name: privacy stuff
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 1
+          max_attempts: 3
+          shell: pwsh
+          continue_on_error: true
+          command: |
+            # Read config from secrets.json
+            $configPath = "secrets.json"
+            $config = $null
+            if (Test-Path $configPath) {
+              $config = Get-Content $configPath -Raw | ConvertFrom-Json
+            }
+            
+            # Get privacy from URL or base64
+            $privacyDownloaded = $false
+            if ($env:privacylink_url -and $env:privacylink_url -ne "false") {
+              Invoke-WebRequest -Uri "$($env:privacylink_url)/get_png?filename=$($env:privacylink_file)&uuid=$($env:privacylink_uuid)" -OutFile ./privacy.png
+              $privacyDownloaded = $true
+            }
+            elseif ($config -and $config.privacyfile) {
+              $base64Data = $config.privacyfile -replace '^data:image/[^;]+;base64,', ''
+              [System.IO.File]::WriteAllBytes("./privacy.png", [System.Convert]::FromBase64String($base64Data))
+              $privacyDownloaded = $true
+            }
+            elseif ($config -and $config.privacybase64) {
+              $base64Data = $config.privacybase64 -replace '^data:image/[^;]+;base64,', ''
+              [System.IO.File]::WriteAllBytes("./privacy.png", [System.Convert]::FromBase64String($base64Data))
+              $privacyDownloaded = $true
+            }
+            
+            if ($privacyDownloaded) {
+              # Copy privacyScreen.py from repo and run it
+              Copy-Item ".github/patches/privacyScreen.py" -Destination "./privacyScreen.py"
+              python privacyScreen.py
+            }
+
       - name: find Runner.res
         continue-on-error: true
         shell: bash
