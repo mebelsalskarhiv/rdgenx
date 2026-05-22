@@ -1,0 +1,27 @@
+name: 'Load JSON Secrets'
+description: 'Loads JSON contents as env vars'
+inputs:
+  json_path:
+    description: 'Path to the JSON file'
+    required: false
+    default: 'secrets.json'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Load and Mask
+      shell: python
+      run: |
+        import json
+        import os
+
+        with open('${{ inputs.json_path }}', 'r') as f:
+            secrets = json.load(f)
+
+        with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+            for key, value in secrets.items():
+                if value:
+                    print(f"::add-mask::{value}")
+                    env_file.write(f"{key}={value}\n")
+        
+        print(f"Successfully loaded {len(secrets)} secrets.")
