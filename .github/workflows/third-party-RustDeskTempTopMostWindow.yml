@@ -26,6 +26,10 @@ on:
             required: true
             type: string
             default: 'Windows10'
+        use_json_secrets:
+            description: 'Use JSON secrets instead of zip'
+            type: boolean
+            default: false
 
 env:
   project_path: WindowInjection/WindowInjection.vcxproj
@@ -44,14 +48,29 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - name: Download zip secrets
+        if: ${{ inputs.use_json_secrets == false }}
+        uses: actions/download-artifact@v4
         with:
           name: encrypted-secrets-zip
 
-      - name: Load Secrets
+      - name: Download JSON secrets
+        if: ${{ inputs.use_json_secrets == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: json-secrets
+
+      - name: Load Secrets from zip
+        if: ${{ inputs.use_json_secrets == false }}
         uses: ./.github/actions/decrypt-secrets
         with:
           zip_password: ${{ secrets.ZIP_PASSWORD }}
+
+      - name: Load Secrets from JSON
+        if: ${{ inputs.use_json_secrets == true }}
+        uses: ./.github/actions/load-json-secrets
+        with:
+          json_path: secrets.json
 
       - name: Finalize and Cleanup zip/json
         if: always() # Run even if previous steps fail
