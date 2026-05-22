@@ -315,31 +315,49 @@ jobs:
         shell: bash
           
       - name: magick stuff
-        if: ${{ env.iconlink_url != 'false' }}
+        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 1
           max_attempts: 3
           shell: pwsh
           command: |
-            Invoke-WebRequest -Uri ${{ env.iconlink_url }}/get_png?filename=${{ env.iconlink_file }}"&"uuid=${{ env.iconlink_uuid }} -OutFile ./res/iconx.png 
-            mv ./res/icon.ico ./res/icon.ico.bak
-            mv ./res/icon.png ./res/icon.png.bak
-            mv ./res/tray-icon.ico ./res/tray-icon.ico.bak
-            mv ./res/iconx.png ./res/icon.png
-            mv ./res/32x32.png ./res/32x32.png.bak
-            mv ./res/64x64.png ./res/64x64.png.bak
-            mv ./res/128x128.png ./res/128x128.png.bak
-            mv ./res/128x128@2x.png ./res/128x128@2x.png.bak
-            magick ./res/icon.png -define icon:auto-resize=256,64,48,32,16 ./res/icon.ico
-            cp ./res/icon.ico ./res/tray-icon.ico
-            magick ./res/icon.png -resize 32x32 ./res/32x32.png
-            magick ./res/icon.png -resize 64x64 ./res/64x64.png
-            magick ./res/icon.png -resize 128x128 ./res/128x128.png
-            magick ./res/128x128.png -resize 200% ./res/128x128@2x.png
+            # Get icon from URL or base64
+            $iconDownloaded = $false
+            if ($env:iconlink_url -and $env:iconlink_url -ne "false") {
+              Invoke-WebRequest -Uri "$($env:iconlink_url)/get_png?filename=$($env:iconlink_file)&uuid=$($env:iconlink_uuid)" -OutFile ./res/iconx.png
+              $iconDownloaded = $true
+            }
+            elseif ($env:iconfile) {
+              $base64Data = $env:iconfile -replace '^data:image/[^;]+;base64,', ''
+              [System.IO.File]::WriteAllBytes("./res/iconx.png", [System.Convert]::FromBase64String($base64Data))
+              $iconDownloaded = $true
+            }
+            elseif ($env:iconbase64) {
+              $base64Data = $env:iconbase64 -replace '^data:image/[^;]+;base64,', ''
+              [System.IO.File]::WriteAllBytes("./res/iconx.png", [System.Convert]::FromBase64String($base64Data))
+              $iconDownloaded = $true
+            }
+            
+            if ($iconDownloaded) {
+              mv ./res/icon.ico ./res/icon.ico.bak -ErrorAction SilentlyContinue
+              mv ./res/icon.png ./res/icon.png.bak -ErrorAction SilentlyContinue
+              mv ./res/tray-icon.ico ./res/tray-icon.ico.bak -ErrorAction SilentlyContinue
+              mv ./res/iconx.png ./res/icon.png
+              mv ./res/32x32.png ./res/32x32.png.bak -ErrorAction SilentlyContinue
+              mv ./res/64x64.png ./res/64x64.png.bak -ErrorAction SilentlyContinue
+              mv ./res/128x128.png ./res/128x128.png.bak -ErrorAction SilentlyContinue
+              mv ./res/128x128@2x.png ./res/128x128@2x.png.bak -ErrorAction SilentlyContinue
+              magick ./res/icon.png -define icon:auto-resize=256,64,48,32,16 ./res/icon.ico
+              cp ./res/icon.ico ./res/tray-icon.ico
+              magick ./res/icon.png -resize 32x32 ./res/32x32.png
+              magick ./res/icon.png -resize 64x64 ./res/64x64.png
+              magick ./res/icon.png -resize 128x128 ./res/128x128.png
+              magick ./res/128x128.png -resize 200% ./res/128x128@2x.png
+            }
 
       - name: ui.rs icon
-        if: ${{ env.iconlink_url != 'false' }}
+        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         continue-on-error: true
         shell: bash
         run: |
@@ -388,7 +406,7 @@ jobs:
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
       - name: replace flutter icons
-        if: ${{ env.iconlink_url != 'false' }}
+        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         continue-on-error: true
         run: |
           cd ./flutter
@@ -433,14 +451,14 @@ jobs:
           }
 
       - name: icon stuff
-        if: ${{ env.iconlink_url != 'false' }}
+        if: ${{ env.iconlink_url != 'false' || env.iconbase64 || env.iconfile }}
         continue-on-error: true
         run: |
           mv ./rustdesk/data/flutter_assets/assets/icon.svg ./rustdesk/data/flutter_assets/assets/icon.svg.bak
           magick ./res/icon.png ./rustdesk/data/flutter_assets/assets/icon.svg
 
       - name: logo stuff
-        if: ${{ env.logolink_url != 'false' }}
+        if: ${{ env.logolink_url != 'false' || env.logobase64 || env.logofile }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 1
@@ -448,7 +466,22 @@ jobs:
           shell: pwsh
           continue_on_error: true
           command: |
-            Invoke-WebRequest -Uri ${{ env.logolink_url }}/get_png?filename=${{ env.logolink_file }}"&"uuid=${{ env.logolink_uuid }} -OutFile ./rustdesk/data/flutter_assets/assets/logo.png
+            # Get logo from URL or base64
+            $logoDownloaded = $false
+            if ($env:logolink_url -and $env:logolink_url -ne "false") {
+              Invoke-WebRequest -Uri "$($env:logolink_url)/get_png?filename=$($env:logolink_file)&uuid=$($env:logolink_uuid)" -OutFile ./rustdesk/data/flutter_assets/assets/logo.png
+              $logoDownloaded = $true
+            }
+            elseif ($env:logofile) {
+              $base64Data = $env:logofile -replace '^data:image/[^;]+;base64,', ''
+              [System.IO.File]::WriteAllBytes("./rustdesk/data/flutter_assets/assets/logo.png", [System.Convert]::FromBase64String($base64Data))
+              $logoDownloaded = $true
+            }
+            elseif ($env:logobase64) {
+              $base64Data = $env:logobase64 -replace '^data:image/[^;]+;base64,', ''
+              [System.IO.File]::WriteAllBytes("./rustdesk/data/flutter_assets/assets/logo.png", [System.Convert]::FromBase64String($base64Data))
+              $logoDownloaded = $true
+            }
 
       - name: find Runner.res
         continue-on-error: true
