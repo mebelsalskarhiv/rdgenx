@@ -43,7 +43,8 @@ jobs:
   setup:
     uses: ./.github/workflows/fetch-encrypted-secrets.yml
     with:
-      zip_url_json: ${{ inputs.zip_url }}
+      zip_url: ${{ inputs.zip_url }}
+      json_filename: "ChrootDeskAdmin.json"
 
   generate-bridge:
     uses: ./.github/workflows/bridge.yml
